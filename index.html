@@ -64,28 +64,42 @@
     cargarDatos();
 
     // 2. GUARDAR DATOS
-    document.getElementById('formHemograma').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btn');
-        btn.disabled = true;
+document.getElementById('formHemograma').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn');
+    btn.disabled = true;
+    btn.innerText = "Guardando...";
 
-        const nuevo = {
-            fecha: document.getElementById('fecha').value,
-            hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
-            plaquetas: document.getElementById('plaquetas').value.replace(',','.'),
-            globulos: document.getElementById('globulos').value.replace(',','.'),
-            neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
-        };
+    const nuevo = {
+        fecha: document.getElementById('fecha').value,
+        hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
+        plaquetas: document.getElementById('plaquetas').value.replace(',','.'),
+        globulos: document.getElementById('globulos').value.replace(',','.'),
+        neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
+    };
 
+    // Usamos URLSearchParams para que Google reciba los datos de forma sencilla
+    try {
         await fetch(URL_SCRIPT, {
             method: 'POST',
-            mode: 'no-cors', // Importante para evitar errores de seguridad
+            mode: 'no-cors', 
+            headers: {
+                'Content-Type': 'text/plain' // Cambiado de application/json a text/plain
+            },
             body: JSON.stringify(nuevo)
         });
 
-        alert("Guardado. Recarga la página para ver los cambios.");
-        location.reload(); 
-    });
+        alert("¡Datos enviados! Espera 2 segundos y la página se recargará.");
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        alert("Error al guardar: " + error);
+        btn.disabled = false;
+        btn.innerText = "Guardar en la Nube";
+    }
+});
 </script>
 </body>
 </html>
