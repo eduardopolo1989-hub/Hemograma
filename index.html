@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Hemogramas FullView</title>
+    <title>Control de Hemogramas Completo</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <style>
@@ -26,37 +26,38 @@
             margin: 0 auto;
         }
 
-        /* Formulario más compacto para dar espacio a la gráfica */
+        /* Formulario optimizado */
         form { 
             background: white; 
-            padding: 15px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            justify-content: space-between;
+            gap: 15px;
+            justify-content: center;
         }
 
         .input-group {
             display: flex;
             flex-direction: column;
-            flex: 1 1 120px;
+            flex: 1 1 180px;
         }
 
         label {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             font-weight: bold;
-            margin-bottom: 3px;
+            margin-bottom: 5px;
             color: #475569;
         }
 
         input { 
-            padding: 8px; 
+            padding: 10px; 
             border: 1px solid #cbd5e1;
-            border-radius: 5px;
-            font-size: 0.9rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
         }
 
         input.normal { border: 2px solid var(--success); background-color: #f0fdf4; }
@@ -66,26 +67,29 @@
             background-color: var(--primary);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+            padding: 12px 25px;
+            border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
-            flex: 1 1 100%; /* Botón ancho en móviles */
+            transition: 0.3s;
+            flex: 1 1 100%;
+            margin-top: 5px;
         }
 
-        /* Contenedor de la gráfica ocupando casi toda la pantalla */
+        button:hover { background-color: #1d4ed8; }
+
+        /* Gráfica a pantalla completa */
         .canvas-container {
             background: white;
-            padding: 10px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            height: 75vh; /* 75% de la altura de la pantalla */
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: 75vh; 
             position: relative;
         }
 
         @media (min-width: 768px) {
-            button { flex: 0 1 auto; }
-            form { justify-content: center; }
+            button { flex: 0 1 auto; align-self: flex-end; }
         }
     </style>
 </head>
@@ -94,26 +98,26 @@
 <div class="container">
     <form id="formHemograma">
         <div class="input-group">
-            <label>Fecha</label>
+            <label>Fecha del Examen</label>
             <input type="date" id="fecha" required>
         </div>
         <div class="input-group">
-            <label>Hgb</label>
-            <input type="text" id="hemoglobina" placeholder="13.5" required>
+            <label>Hemoglobina</label>
+            <input type="text" id="hemoglobina" placeholder="Ej: 13.5" required>
         </div>
         <div class="input-group">
-            <label>Plt</label>
-            <input type="text" id="plaquetas" placeholder="250" required>
+            <label>Plaquetas</label>
+            <input type="text" id="plaquetas" placeholder="Ej: 250" required>
         </div>
         <div class="input-group">
-            <label>WBC</label>
-            <input type="text" id="globulos" placeholder="7.2" required>
+            <label>Glóbulos Blancos</label>
+            <input type="text" id="globulos" placeholder="Ej: 7.2" required>
         </div>
         <div class="input-group">
-            <label>Neu%</label>
-            <input type="text" id="neutrofilos" placeholder="60" required>
+            <label>Neutrófilos</label>
+            <input type="text" id="neutrofilos" placeholder="Ej: 60" required>
         </div>
-        <button type="submit" id="btn">Guardar</button>
+        <button type="submit" id="btn">Guardar Registro</button>
     </form>
 
     <div class="canvas-container">
@@ -126,7 +130,6 @@
 
     let fechas = [], hemoglobinas = [], plaquetas = [], globulos = [], neutrofilos = [];
 
-    // --- INDICADORES ---
     const rangos = {
         hemoglobina: { min: 12, max: 17.5 },
         plaquetas: { min: 150, max: 450 },
@@ -134,16 +137,15 @@
         neutrofilos: { min: 40, max: 75 }
     };
 
+    // Validación visual
     ['hemoglobina', 'plaquetas', 'globulos', 'neutrofilos'].forEach(id => {
         document.getElementById(id).addEventListener('input', (e) => {
             const num = parseFloat(e.target.value.replace(',', '.'));
-            const input = e.target;
-            if (isNaN(num)) { input.className = ''; return; }
-            input.className = (num >= rangos[id].min && num <= rangos[id].max) ? 'normal' : 'fuera';
+            if (isNaN(num)) { e.target.className = ''; return; }
+            e.target.className = (num >= rangos[id].min && num <= rangos[id].max) ? 'normal' : 'fuera';
         });
     });
 
-    // --- GRÁFICA ---
     const ctx = document.getElementById('grafica').getContext('2d');
     const grafica = new Chart(ctx, {
         type: 'line',
@@ -152,35 +154,33 @@
             datasets: [
                 { label: 'Hemoglobina', data: hemoglobinas, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.2 },
                 { label: 'Plaquetas', data: plaquetas, borderColor: '#2563eb', backgroundColor: '#2563eb', tension: 0.2 },
-                { label: 'Globulos Blancos', data: globulos, borderColor: '#22c55e', backgroundColor: '#22c55e', tension: 0.2 },
-                { label: 'Neutrofilos', data: neutrofilos, borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.2 }
+                { label: 'Glóbulos Blancos', data: globulos, borderColor: '#22c55e', backgroundColor: '#22c55e', tension: 0.2 },
+                { label: 'Neutrófilos', data: neutrofilos, borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.2 }
             ]
         },
-        plugins: [ChartDataLabels], // Activar plugin de etiquetas
+        plugins: [ChartDataLabels],
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } },
+                legend: { position: 'top' },
                 datalabels: {
                     align: 'top',
                     anchor: 'end',
                     backgroundColor: (context) => context.dataset.borderColor,
                     borderRadius: 4,
                     color: 'white',
-                    font: { size: 10, weight: 'bold' },
-                    formatter: (value) => value, // Muestra el valor directamente
-                    padding: 4
+                    font: { weight: 'bold', size: 11 },
+                    formatter: (value) => value,
+                    padding: 5
                 }
             },
             scales: {
-                x: { ticks: { font: { size: 10 } } },
                 y: { beginAtZero: false }
             }
         }
     });
 
-    // --- CARGAR DATOS ---
     async function cargarDatos() {
         try {
             const res = await fetch(URL_SCRIPT);
@@ -189,11 +189,8 @@
             
             data.forEach(r => {
                 const dateObj = new Date(r.fecha);
-                // Formato corto: DD/MM/YY
                 const fechaCorta = dateObj.toLocaleDateString('es-ES', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit'
+                    day: '2-digit', month: '2-digit', year: '2-digit'
                 });
                 
                 fechas.push(fechaCorta);
@@ -207,12 +204,11 @@
     }
     cargarDatos();
 
-    // --- GUARDAR ---
     document.getElementById('formHemograma').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btn');
         btn.disabled = true;
-        btn.innerText = "...";
+        btn.innerText = "Guardando...";
 
         const nuevo = {
             fecha: document.getElementById('fecha').value,
@@ -224,7 +220,7 @@
 
         try {
             await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(nuevo) });
-            location.reload();
+            setTimeout(() => location.reload(), 1500);
         } catch (error) {
             btn.disabled = false;
             btn.innerText = "Error";
