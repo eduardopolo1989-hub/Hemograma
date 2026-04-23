@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Hemogramas Completo</title>
+    <title>Hemograma JMB - Control Profesional</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style>
         :root {
             --primary: #2563eb;
@@ -21,84 +24,61 @@
             background-color: var(--bg);
         }
 
-        .container {
-            max-width: 100%;
-            margin: 0 auto;
-        }
+        .container { max-width: 100%; margin: 0 auto; }
 
-        /* Formulario optimizado */
+        h1 { text-align: center; color: #1e293b; margin: 10px 0; font-size: 1.8rem; }
+
         form { 
             background: white; 
-            padding: 20px; 
+            padding: 15px; 
             border-radius: 12px; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 10px;
             justify-content: center;
         }
 
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            flex: 1 1 180px;
-        }
+        .input-group { display: flex; flex-direction: column; flex: 1 1 150px; }
 
-        label {
-            font-size: 0.85rem;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #475569;
-        }
+        label { font-size: 0.75rem; font-weight: bold; margin-bottom: 3px; color: #475569; }
 
-        input { 
-            padding: 10px; 
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 1rem;
-            outline: none;
-        }
-
+        input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; outline: none; }
         input.normal { border: 2px solid var(--success); background-color: #f0fdf4; }
         input.fuera { border: 2px solid var(--danger); background-color: #fef2f2; }
 
+        .btn-group { display: flex; gap: 10px; width: 100%; margin-top: 10px; }
+
         button { 
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-            flex: 1 1 100%;
-            margin-top: 5px;
+            flex: 1;
+            color: white; border: none; padding: 12px; border-radius: 8px; 
+            font-weight: bold; cursor: pointer; transition: 0.3s;
         }
 
-        button:hover { background-color: #1d4ed8; }
+        #btn { background-color: var(--primary); }
+        #btnExportar { background-color: #4b5563; }
+        button:hover { opacity: 0.9; }
 
-        /* Gráfica a pantalla completa */
         .canvas-container {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
+            background: white; padding: 15px; border-radius: 12px; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            height: 75vh; 
-            position: relative;
+            height: 70vh; position: relative;
         }
 
-        @media (min-width: 768px) {
-            button { flex: 0 1 auto; align-self: flex-end; }
-        }
+        /* Oculto para la exportación */
+        #exportArea { position: absolute; left: -9999px; top: 0; width: 800px; }
+        .export-page { width: 800px; height: 500px; padding: 40px; background: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <h1>Hemograma JMB</h1>
+
     <form id="formHemograma">
         <div class="input-group">
-            <label>Fecha del Examen</label>
+            <label>Fecha</label>
             <input type="date" id="fecha" required>
         </div>
         <div class="input-group">
@@ -117,13 +97,18 @@
             <label>Neutrófilos</label>
             <input type="text" id="neutrofilos" placeholder="Ej: 60" required>
         </div>
-        <button type="submit" id="btn">Guardar Registro</button>
+        <div class="btn-group">
+            <button type="submit" id="btn">Guardar Registro</button>
+            <button type="button" id="btnExportar">Exportar PDF Paginado</button>
+        </div>
     </form>
 
     <div class="canvas-container">
         <canvas id="grafica"></canvas>
     </div>
 </div>
+
+<div id="exportArea"></div>
 
 <script>
     const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzP6z2-BKEJgBWWatfS_9nkIjp5yjKJpq6UNue3oKosqb5Q9w0fUF0ngJFUvbkf_tj4Ug/exec";
@@ -137,7 +122,6 @@
         neutrofilos: { min: 40, max: 75 }
     };
 
-    // Validación visual
     ['hemoglobina', 'plaquetas', 'globulos', 'neutrofilos'].forEach(id => {
         document.getElementById(id).addEventListener('input', (e) => {
             const num = parseFloat(e.target.value.replace(',', '.'));
@@ -165,18 +149,11 @@
             plugins: {
                 legend: { position: 'top' },
                 datalabels: {
-                    align: 'top',
-                    anchor: 'end',
-                    backgroundColor: (context) => context.dataset.borderColor,
-                    borderRadius: 4,
-                    color: 'white',
-                    font: { weight: 'bold', size: 11 },
-                    formatter: (value) => value,
-                    padding: 5
+                    align: 'top', anchor: 'end', borderRadius: 4, color: 'white',
+                    backgroundColor: (ctx) => ctx.dataset.borderColor,
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (val) => val, padding: 4
                 }
-            },
-            scales: {
-                y: { beginAtZero: false }
             }
         }
     });
@@ -186,30 +163,19 @@
             const res = await fetch(URL_SCRIPT);
             const data = await res.json();
             data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-            
             data.forEach(r => {
-                const dateObj = new Date(r.fecha);
-                const fechaCorta = dateObj.toLocaleDateString('es-ES', {
-                    day: '2-digit', month: '2-digit', year: '2-digit'
-                });
-                
-                fechas.push(fechaCorta);
-                hemoglobinas.push(r.hemoglobina);
-                plaquetas.push(r.plaquetas);
-                globulos.push(r.globulos);
-                neutrofilos.push(r.neutrofilos);
+                const f = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                fechas.push(f); hemoglobinas.push(r.hemoglobina); plaquetas.push(r.plaquetas); globulos.push(r.globulos); neutrofilos.push(r.neutrofilos);
             });
             grafica.update();
-        } catch (e) { console.log("Cargando..."); }
+        } catch (e) { console.log("Error al cargar"); }
     }
     cargarDatos();
 
     document.getElementById('formHemograma').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btn');
-        btn.disabled = true;
-        btn.innerText = "Guardando...";
-
+        btn.disabled = true; btn.innerText = "Guardando...";
         const nuevo = {
             fecha: document.getElementById('fecha').value,
             hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
@@ -217,14 +183,51 @@
             globulos: document.getElementById('globulos').value.replace(',','.'),
             neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
         };
-
         try {
             await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(nuevo) });
-            setTimeout(() => location.reload(), 1500);
-        } catch (error) {
-            btn.disabled = false;
-            btn.innerText = "Error";
+            location.reload();
+        } catch (error) { btn.disabled = false; btn.innerText = "Error"; }
+    });
+
+    // --- FUNCIÓN DE EXPORTACIÓN PAGINADA ---
+    document.getElementById('btnExportar').addEventListener('click', async () => {
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('l', 'px', [800, 500]);
+        const area = document.getElementById('exportArea');
+        const datasets = grafica.data.datasets;
+
+        for (let i = 0; i < datasets.length; i++) {
+            // Crear una página temporal para cada gráfico
+            area.innerHTML = `<div class="export-page">
+                <h2 style="text-align:center; font-family:Arial;">Hemograma JMB: ${datasets[i].label}</h2>
+                <canvas id="tempChart${i}"></canvas>
+            </div>`;
+
+            const tempCtx = document.getElementById(`tempChart${i}`).getContext('2d');
+            new Chart(tempCtx, {
+                type: 'line',
+                data: { labels: fechas, datasets: [datasets[i]] },
+                plugins: [ChartDataLabels],
+                options: { 
+                    animation: false,
+                    plugins: { 
+                        datalabels: { align: 'top', anchor: 'end', backgroundColor: datasets[i].borderColor, color: 'white', borderRadius: 4, padding: 4 } 
+                    }
+                }
+            });
+
+            // Esperar un poco a que el gráfico se renderice
+            await new Promise(r => setTimeout(r, 500));
+
+            const canvas = await html2canvas(area.querySelector('.export-page'));
+            const imgData = canvas.toDataURL('image/png');
+
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, 0, 800, 500);
         }
+
+        pdf.save('Hemograma_JMB_Detallado.pdf');
+        area.innerHTML = ''; // Limpiar
     });
 </script>
 </body>
