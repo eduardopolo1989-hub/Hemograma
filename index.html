@@ -2,55 +2,197 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gráfica de Hemograma - Google Sheets</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Hemogramas Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        form { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        input, button { margin: 5px; padding: 8px; }
-        canvas { max-width: 900px; }
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: var(--bg);
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h2 { text-align: center; color: #0f172a; }
+
+        /* Diseño Responsivo con Flexbox */
+        form { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 200px; /* Se ajusta según el espacio */
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #64748b;
+        }
+
+        input { 
+            padding: 12px; 
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        /* Indicadores visuales */
+        input.normal { border-color: var(--success); background-color: #f0fdf4; }
+        input.fuera { border-color: var(--danger); background-color: #fef2f2; }
+
+        button { 
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            align-self: flex-end;
+            min-width: 150px;
+        }
+
+        button:hover { background-color: #1d4ed8; }
+        button:disabled { background-color: #94a3b8; }
+
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            position: relative;
+            height: 40vh; /* Altura responsiva */
+            min-height: 300px;
+        }
+
+        @media (max-width: 600px) {
+            form { padding: 15px; }
+            .input-group { flex: 1 1 100%; }
+            button { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
-<h2>Mi Historial de Hemogramas</h2>
+<div class="container">
+    <h2>🩸 Mi Historial de Hemogramas</h2>
 
-<form id="formHemograma">
-    <input type="date" id="fecha" required>
-    <input type="text" id="hemoglobina" placeholder="Hemoglobina" required>
-    <input type="text" id="plaquetas" placeholder="Plaquetas" required>
-    <input type="text" id="globulos" placeholder="Glóbulos" required>
-    <input type="text" id="neutrofilos" placeholder="Neutrófilos" required>
-    <button type="submit" id="btn">Guardar en la Nube</button>
-</form>
+    <form id="formHemograma">
+        <div class="input-group">
+            <label>Fecha</label>
+            <input type="date" id="fecha" required>
+        </div>
+        <div class="input-group">
+            <label>Hemoglobina (12-17.5)</label>
+            <input type="text" id="hemoglobina" placeholder="Ej: 13.5" required>
+        </div>
+        <div class="input-group">
+            <label>Plaquetas (150-450)</label>
+            <input type="text" id="plaquetas" placeholder="Ej: 250" required>
+        </div>
+        <div class="input-group">
+            <label>Blancos (4.5-11)</label>
+            <input type="text" id="globulos" placeholder="Ej: 7.2" required>
+        </div>
+        <div class="input-group">
+            <label>Neutrófilos (40-75%)</label>
+            <input type="text" id="neutrofilos" placeholder="Ej: 60" required>
+        </div>
+        <button type="submit" id="btn">Guardar en la Nube</button>
+    </form>
 
-<canvas id="grafica"></canvas>
+    <div class="canvas-container">
+        <canvas id="grafica"></canvas>
+    </div>
+</div>
 
 <script>
-    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzP6z2-BKEJgBWWatfS_9nkIjp5yjKJpq6UNue3oKosqb5Q9w0fUF0ngJFUvbkf_tj4Ug/exec"; // <--- PEGA AQUÍ TU URL /exec
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzP6z2-BKEJgBWWatfS_9nkIjp5yjKJpq6UNue3oKosqb5Q9w0fUF0ngJFUvbkf_tj4Ug/exec";
 
     let fechas = [], hemoglobinas = [], plaquetas = [], globulos = [], neutrofilos = [];
 
+    // --- LOGICA DE INDICADORES VISUALES ---
+    const rangos = {
+        hemoglobina: { min: 12, max: 17.5 },
+        plaquetas: { min: 150, max: 450 },
+        globulos: { min: 4.5, max: 11 },
+        neutrofilos: { min: 40, max: 75 }
+    };
+
+    const validarInput = (id, valor) => {
+        const num = parseFloat(valor.replace(',', '.'));
+        const input = document.getElementById(id);
+        if (isNaN(num)) {
+            input.className = '';
+            return;
+        }
+        const { min, max } = rangos[id];
+        input.className = (num >= min && num <= max) ? 'normal' : 'fuera';
+    };
+
+    ['hemoglobina', 'plaquetas', 'globulos', 'neutrofilos'].forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => validarInput(id, e.target.value));
+    });
+
+    // --- GRÁFICA ---
     const ctx = document.getElementById('grafica').getContext('2d');
     const grafica = new Chart(ctx, {
         type: 'line',
         data: {
             labels: fechas,
             datasets: [
-                { label: 'Hemoglobina', data: hemoglobinas, borderColor: 'red' },
-                { label: 'Plaquetas', data: plaquetas, borderColor: 'blue' },
-                { label: 'Blancos', data: globulos, borderColor: 'green' },
-                { label: 'Neutrófilos', data: neutrofilos, borderColor: 'orange' }
+                { label: 'Hemoglobina', data: hemoglobinas, borderColor: '#ef4444', tension: 0.3 },
+                { label: 'Plaquetas', data: plaquetas, borderColor: '#2563eb', tension: 0.3 },
+                { label: 'Blancos', data: globulos, borderColor: '#22c55e', tension: 0.3 },
+                { label: 'Neutrófilos', data: neutrofilos, borderColor: '#f59e0b', tension: 0.3 }
             ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
         }
     });
 
-    // 1. CARGAR DATOS AL ABRIR LA WEB
+    // --- CARGAR DATOS ---
     async function cargarDatos() {
         try {
             const res = await fetch(URL_SCRIPT);
             const data = await res.json();
+            // Ordenar por fecha antes de mostrar
+            data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+            
             data.forEach(r => {
                 fechas.push(new Date(r.fecha).toLocaleDateString());
                 hemoglobinas.push(r.hemoglobina);
@@ -59,47 +201,40 @@
                 neutrofilos.push(r.neutrofilos);
             });
             grafica.update();
-        } catch (e) { console.log("Aún no hay datos"); }
+        } catch (e) { console.log("Cargando..."); }
     }
     cargarDatos();
 
-    // 2. GUARDAR DATOS
-document.getElementById('formHemograma').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btn');
-    btn.disabled = true;
-    btn.innerText = "Guardando...";
+    // --- GUARDAR DATOS ---
+    document.getElementById('formHemograma').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn');
+        btn.disabled = true;
+        btn.innerText = "Enviando...";
 
-    const nuevo = {
-        fecha: document.getElementById('fecha').value,
-        hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
-        plaquetas: document.getElementById('plaquetas').value.replace(',','.'),
-        globulos: document.getElementById('globulos').value.replace(',','.'),
-        neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
-    };
+        const nuevo = {
+            fecha: document.getElementById('fecha').value,
+            hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
+            plaquetas: document.getElementById('plaquetas').value.replace(',','.'),
+            globulos: document.getElementById('globulos').value.replace(',','.'),
+            neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
+        };
 
-    // Usamos URLSearchParams para que Google reciba los datos de forma sencilla
-    try {
-        await fetch(URL_SCRIPT, {
-            method: 'POST',
-            mode: 'no-cors', 
-            headers: {
-                'Content-Type': 'text/plain' // Cambiado de application/json a text/plain
-            },
-            body: JSON.stringify(nuevo)
-        });
+        try {
+            await fetch(URL_SCRIPT, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(nuevo)
+            });
 
-        alert("¡Datos enviados! Espera 2 segundos y la página se recargará.");
-        setTimeout(() => {
+            alert("¡Registro guardado con éxito!");
             location.reload();
-        }, 2000);
-        
-    } catch (error) {
-        alert("Error al guardar: " + error);
-        btn.disabled = false;
-        btn.innerText = "Guardar en la Nube";
-    }
-});
+        } catch (error) {
+            alert("Error al conectar");
+            btn.disabled = false;
+        }
+    });
 </script>
 </body>
 </html>
