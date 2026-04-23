@@ -2,119 +2,90 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gráfica de Hemograma - Excel Online</title>
+    <title>Gráfica de Hemograma - Google Sheets</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <style>
         body { font-family: Arial; margin: 20px; }
-        form { margin-bottom: 20px; }
+        form { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         input, button { margin: 5px; padding: 8px; }
         canvas { max-width: 900px; }
     </style>
 </head>
 <body>
 
-<h2>Registro de Hemograma (Cloud Sync)</h2>
+<h2>Mi Historial de Hemogramas</h2>
 
 <form id="formHemograma">
     <input type="date" id="fecha" required>
-    <input type="text" id="hemoglobina" placeholder="Hemoglobina (ej: 13.5)" required>
-    <input type="text" id="plaquetas" placeholder="Plaquetas (ej: 250)" required>
-    <input type="text" id="globulos" placeholder="Glóbulos Blancos (ej: 6.8)" required>
-    <input type="text" id="neutrofilos" placeholder="Neutrófilos (ej: 55.2)" required>
-    <button type="submit" id="btnAgregar">Agregar y Guardar</button>
+    <input type="text" id="hemoglobina" placeholder="Hemoglobina" required>
+    <input type="text" id="plaquetas" placeholder="Plaquetas" required>
+    <input type="text" id="globulos" placeholder="Glóbulos" required>
+    <input type="text" id="neutrofilos" placeholder="Neutrófilos" required>
+    <button type="submit" id="btn">Guardar en la Nube</button>
 </form>
 
 <canvas id="grafica"></canvas>
 
 <script>
-    // --- CONFIGURACIÓN ---
-    const URL_POWER_AUTOMATE = "https://default2d7d3c5417184f6ab740ab553e895e.d7.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/00bef11e60b44008abbcd14d3292fbf0/triggers/manual/paths/invoke?api-version=1";
+    const URL_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI"; // <--- PEGA AQUÍ TU URL /exec
 
-    const fechas = [];
-    const hemoglobinaData = [];
-    const plaquetasData = [];
-    const globulosData = [];
-    const neutrofilosData = [];
+    let fechas = [], hemoglobinas = [], plaquetas = [], globulos = [], neutrofilos = [];
 
     const ctx = document.getElementById('grafica').getContext('2d');
-
     const grafica = new Chart(ctx, {
         type: 'line',
         data: {
             labels: fechas,
             datasets: [
-                { label: 'Hemoglobina', data: hemoglobinaData, borderColor: 'red', borderWidth: 2, fill: false },
-                { label: 'Plaquetas', data: plaquetasData, borderColor: 'blue', borderWidth: 2, fill: false },
-                { label: 'Glóbulos Blancos', data: globulosData, borderColor: 'green', borderWidth: 2, fill: false },
-                { label: 'Neutrófilos', data: neutrofilosData, borderColor: 'orange', borderWidth: 2, fill: false }
+                { label: 'Hemoglobina', data: hemoglobinas, borderColor: 'red' },
+                { label: 'Plaquetas', data: plaquetas, borderColor: 'blue' },
+                { label: 'Blancos', data: globulos, borderColor: 'green' },
+                { label: 'Neutrófilos', data: neutrofilos, borderColor: 'orange' }
             ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                datalabels: {
-                    anchor: 'end',
-                    align: 'top',
-                    formatter: Math.round
-                }
-            }
-        },
-        plugins: [ChartDataLabels]
+        }
     });
 
-    function convertirDecimal(valor) {
-        return parseFloat(valor.replace(",", "."));
+    // 1. CARGAR DATOS AL ABRIR LA WEB
+    async function cargarDatos() {
+        try {
+            const res = await fetch(URL_SCRIPT);
+            const data = await res.json();
+            data.forEach(r => {
+                fechas.push(new Date(r.fecha).toLocaleDateString());
+                hemoglobinas.push(r.hemoglobina);
+                plaquetas.push(r.plaquetas);
+                globulos.push(r.globulos);
+                neutrofilos.push(r.neutrofilos);
+            });
+            grafica.update();
+        } catch (e) { console.log("Aún no hay datos"); }
     }
+    cargarDatos();
 
-    document.getElementById('formHemograma').addEventListener('submit', async function(e) {
+    // 2. GUARDAR DATOS
+    document.getElementById('formHemograma').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const btn = document.getElementById('btnAgregar');
-        
-        const nuevoRegistro = {
+        const btn = document.getElementById('btn');
+        btn.disabled = true;
+
+        const nuevo = {
             fecha: document.getElementById('fecha').value,
-            hemoglobina: convertirDecimal(document.getElementById('hemoglobina').value),
-            plaquetas: convertirDecimal(document.getElementById('plaquetas').value),
-            globulos: convertirDecimal(document.getElementById('globulos').value),
-            neutrofilos: convertirDecimal(document.getElementById('neutrofilos').value)
+            hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
+            plaquetas: document.getElementById('plaquetas').value.replace(',','.'),
+            globulos: document.getElementById('globulos').value.replace(',','.'),
+            neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
         };
 
-        if (Object.values(nuevoRegistro).some(v => v === null || isNaN(v) && typeof v !== 'string')) {
-            alert("Por favor ingresa valores válidos.");
-            return;
-        }
+        await fetch(URL_SCRIPT, {
+            method: 'POST',
+            mode: 'no-cors', // Importante para evitar errores de seguridad
+            body: JSON.stringify(nuevo)
+        });
 
-        // Bloquear botón mientras envía
-        btn.disabled = true;
-        btn.innerText = "Guardando...";
-
-        try {
-            // ENVIAR A EXCEL ONLINE
-            const response = await fetch(URL_POWER_AUTOMATE, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(nuevoRegistro)
-            });
-
-            // Actualizar gráfica localmente
-            fechas.push(nuevoRegistro.fecha);
-            hemoglobinaData.push(nuevoRegistro.hemoglobina);
-            plaquetasData.push(nuevoRegistro.plaquetas);
-            globulosData.push(nuevoRegistro.globulos);
-            neutrofilosData.push(nuevoRegistro.neutrofilos);
-            grafica.update();
-
-            this.reset();
-            alert("¡Datos guardados en Excel!");
-        } catch (error) {
-            console.error("Error:", error);
-            alert("Error al conectar con el servidor.");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Agregar";
-        }
+        alert("Guardado. Recarga la página para ver los cambios.");
+        location.reload(); 
     });
 </script>
-
 </body>
 </html>
