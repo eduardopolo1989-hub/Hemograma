@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hemograma JMB | Seguimiento Clínico</title>
+    <title>Hemograma JMB | Seguimiento por Etapas</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -54,7 +54,7 @@
 <div class="main-app">
     <header>
         <h1>Hemograma JMB</h1>
-        <div id="status" style="font-size: 0.7rem; color: #94a3b8;">Dashboard Evolutivo</div>
+        <div id="status" style="font-size: 0.7rem; color: #94a3b8;">Seguimiento Cronológico por Eventos</div>
     </header>
 
     <div class="content-grid">
@@ -154,7 +154,7 @@
                 legend: { display: false },
                 datalabels: {
                     align: 'top',
-                    offset: 8,
+                    offset: 10,
                     borderRadius: 4,
                     color: 'white',
                     backgroundColor: (ctx) => ctx.dataset.borderColor,
@@ -162,17 +162,7 @@
                     formatter: (value) => value === null ? '' : value
                 }
             },
-            scales: {
-                x: {
-                    ticks: {
-                        callback: function(val, index) {
-                            const label = this.getLabelForValue(val);
-                            return label; // La etiqueta multidimensional se maneja en actualizarGrafica
-                        }
-                    }
-                }
-            },
-            layout: { padding: { top: 30, bottom: 10 } }
+            layout: { padding: { top: 35, bottom: 10 } }
         }
     });
 
@@ -203,26 +193,34 @@
     function actualizarGrafica() {
         const itemKey = document.getElementById('selectItem').value;
         const config = configItems[itemKey];
-        const fDesde = new Date(document.getElementById('selectDesde').value);
-        const fHasta = new Date(document.getElementById('selectHasta').value);
+        const fDesdeStr = document.getElementById('selectDesde').value;
+        const fHastaStr = document.getElementById('selectHasta').value;
+        const fDesde = new Date(fDesdeStr);
+        const fHasta = new Date(fHastaStr);
 
         const filtrados = rawData.filter(r => {
             const f = new Date(r.fecha);
             return f >= fDesde && f <= fHasta;
         });
 
-        // Crear etiquetas con contador de semanas
+        // Lógica de conteo de semanas acumulado por etapa
+        let hitoInicioPeriodo = new Date(filtrados[0].fecha);
+        
         grafica.data.labels = filtrados.map((r, i) => {
             const fechaActual = new Date(r.fecha);
             const fechaFormateada = fechaActual.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
             
-            if (i === 0) return [fechaFormateada, "Inicio"];
-
-            const fechaAnterior = new Date(filtrados[i-1].fecha);
-            const diffMs = fechaActual - fechaAnterior;
+            const diffMs = fechaActual - hitoInicioPeriodo;
             const semanas = (diffMs / (1000 * 60 * 60 * 24 * 7)).toFixed(1);
             
-            return [fechaFormateada, `+${semanas} sem` ];
+            const label = [fechaFormateada, `Sem ${semanas}`];
+
+            // Si el registro actual tiene un evento, el hito para el SIGUIENTE registro se reinicia a hoy
+            if (r.evento && r.evento.trim() !== "") {
+                hitoInicioPeriodo = fechaActual;
+            }
+
+            return label;
         });
 
         grafica.data.datasets[0].label = config.label;
@@ -268,13 +266,9 @@
         
         for (let i = 0; i < keys.length; i++) {
             const key = keys[i], conf = configItems[key];
-            const dataF = rawData.filter(r => {
-                const f = new Date(r.fecha);
-                return f >= new Date(document.getElementById('selectDesde').value) && f <= new Date(document.getElementById('selectHasta').value);
-            });
-
+            
             area.innerHTML = `<div style="padding:40px; background:white; width:800px; height:500px;">
-                <h2 style="font-family:sans-serif; color:${conf.color}; margin:0;">${conf.label} - Reporte Evolutivo</h2>
+                <h2 style="font-family:sans-serif; color:${conf.color}; margin:0;">${conf.label} - Reporte de Etapas</h2>
                 <canvas id="tempChart${i}"></canvas>
             </div>`;
             
@@ -285,8 +279,8 @@
                     labels: grafica.data.labels, 
                     datasets: [{ 
                         label: conf.label, 
-                        data: dataF.map(r => (r[key] === "" || r[key] === undefined) ? null : r[key]), 
-                        eventos: dataF.map(r => r.evento), 
+                        data: grafica.data.datasets[0].data, // Usamos los datos ya procesados
+                        eventos: grafica.data.datasets[0].eventos, 
                         borderColor: conf.color, 
                         spanGaps: true,
                         pointRadius: 6
@@ -300,7 +294,7 @@
                         datalabels: { 
                             display: (ctx) => ctx.dataset.data[ctx.dataIndex] !== null,
                             align: 'top',
-                            offset: 10,
+                            offset: 12,
                             backgroundColor: conf.color,
                             color: 'white',
                             borderRadius: 4,
@@ -315,7 +309,7 @@
             if (i > 0) pdf.addPage();
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 800, 500);
         }
-        pdf.save('Reporte_Evolutivo_JMB.pdf');
+        pdf.save('Reporte_Etapas_JMB.pdf');
         area.innerHTML = '';
     });
 </script>
