@@ -22,7 +22,7 @@
         * { box-sizing: border-box; }
 
         body { 
-            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            font-family: 'Inter', sans-serif; 
             margin: 0; padding: 0; 
             background-color: var(--bg);
             color: var(--text);
@@ -30,19 +30,9 @@
             overflow: hidden;
         }
 
-        .main-app {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            padding: 15px;
-        }
+        .main-app { display: flex; flex-direction: column; height: 100vh; padding: 15px; }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 
         h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--accent); }
 
@@ -63,18 +53,28 @@
             flex-direction: column;
         }
 
-        /* Filtro de Fechas */
+        /* Estilo para los Selectores de Filtro */
         .filter-bar {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
             margin-bottom: 15px;
-            padding-bottom: 10px;
+            padding-bottom: 12px;
             border-bottom: 1px solid #f1f5f9;
         }
 
-        .filter-bar label { font-size: 0.65rem; }
-        .filter-bar input { padding: 5px 8px; font-size: 0.8rem; border-width: 1px; }
+        .filter-group { display: flex; align-items: center; gap: 8px; }
+        
+        select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.85rem;
+            color: var(--text);
+            cursor: pointer;
+            outline: none;
+        }
 
         form { display: flex; flex-direction: column; gap: 12px; }
         .input-group { display: flex; flex-direction: column; gap: 4px; }
@@ -102,7 +102,6 @@
             .main-app { height: auto; }
             .content-grid { grid-template-columns: 1fr; }
             .chart-area { height: 400px; }
-            .filter-bar { flex-wrap: wrap; }
         }
 
         #exportArea { position: absolute; left: -9999px; width: 800px; }
@@ -148,15 +147,15 @@
 
         <div class="card">
             <div class="filter-bar">
-                <div class="input-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                <div class="filter-group">
                     <label>Desde:</label>
-                    <input type="date" id="filterDesde">
+                    <select id="selectDesde"></select>
                 </div>
-                <div class="input-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                <div class="filter-group">
                     <label>Hasta:</label>
-                    <input type="date" id="filterHasta">
+                    <select id="selectHasta"></select>
                 </div>
-                <button id="btnReset" style="padding: 5px 10px; font-size: 0.7rem; background: #f1f5f9; color: #64748b;">Reset</button>
+                <button id="btnReset" style="padding: 4px 12px; font-size: 0.7rem; background: #f1f5f9; color: #64748b; border-radius: 6px;">Reset</button>
             </div>
             
             <div class="chart-area">
@@ -171,7 +170,6 @@
 <script>
     const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzP6z2-BKEJgBWWatfS_9nkIjp5yjKJpq6UNue3oKosqb5Q9w0fUF0ngJFUvbkf_tj4Ug/exec";
     
-    // Datos maestros (originales)
     let rawData = [];
     
     const rangos = {
@@ -216,29 +214,56 @@
         try {
             const res = await fetch(URL_SCRIPT);
             rawData = await res.json();
+            
+            // Ordenar por fecha real
             rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
             
-            // Establecer límites iniciales en los filtros
-            if(rawData.length > 0) {
-                document.getElementById('filterDesde').value = rawData[0].fecha.split('T')[0];
-                document.getElementById('filterHasta').value = rawData[rawData.length-1].fecha.split('T')[0];
-            }
-            
+            poblarSelectores();
             actualizarGrafica();
         } catch (e) { console.log("Error de carga"); }
     }
 
-    function actualizarGrafica() {
-        const desde = new Date(document.getElementById('filterDesde').value);
-        const hasta = new Date(document.getElementById('filterHasta').value);
+    function poblarSelectores() {
+        const selectDesde = document.getElementById('selectDesde');
+        const selectHasta = document.getElementById('selectHasta');
         
-        // Filtrar datos
-        const filtrados = rawData.filter(r => {
-            const fExamen = new Date(r.fecha);
-            return fExamen >= desde && fExamen <= hasta;
+        // Limpiar
+        selectDesde.innerHTML = '';
+        selectHasta.innerHTML = '';
+
+        rawData.forEach((r, index) => {
+            const fechaTxt = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            
+            // Opción para "Desde"
+            let optD = document.createElement('option');
+            optD.value = r.fecha; // Valor ISO para comparar
+            optD.textContent = fechaTxt;
+            selectDesde.appendChild(optD);
+
+            // Opción para "Hasta"
+            let optH = document.createElement('option');
+            optH.value = r.fecha;
+            optH.textContent = fechaTxt;
+            selectHasta.appendChild(optH);
         });
 
-        // Limpiar arrays actuales
+        // Por defecto: "Desde" la primera y "Hasta" la última
+        selectDesde.selectedIndex = 0;
+        selectHasta.selectedIndex = rawData.length - 1;
+    }
+
+    function actualizarGrafica() {
+        const valDesde = document.getElementById('selectDesde').value;
+        const valHasta = document.getElementById('selectHasta').value;
+        
+        const fechaLimiteDesde = new Date(valDesde);
+        const fechaLimiteHasta = new Date(valHasta);
+
+        const filtrados = rawData.filter(r => {
+            const f = new Date(r.fecha);
+            return f >= fechaLimiteDesde && f <= fechaLimiteHasta;
+        });
+
         grafica.data.labels = [];
         grafica.data.datasets.forEach(ds => ds.data = []);
 
@@ -254,20 +279,19 @@
         grafica.update();
     }
 
-    // Eventos de filtro
-    document.getElementById('filterDesde').addEventListener('change', actualizarGrafica);
-    document.getElementById('filterHasta').addEventListener('change', actualizarGrafica);
+    document.getElementById('selectDesde').addEventListener('change', actualizarGrafica);
+    document.getElementById('selectHasta').addEventListener('change', actualizarGrafica);
     document.getElementById('btnReset').addEventListener('click', () => {
         if(rawData.length > 0) {
-            document.getElementById('filterDesde').value = rawData[0].fecha.split('T')[0];
-            document.getElementById('filterHasta').value = rawData[rawData.length-1].fecha.split('T')[0];
+            document.getElementById('selectDesde').selectedIndex = 0;
+            document.getElementById('selectHasta').selectedIndex = rawData.length - 1;
             actualizarGrafica();
         }
     });
 
     cargarDatos();
 
-    // Guardado (sin cambios)
+    // Guardado
     document.getElementById('formHemograma').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btn');
@@ -283,7 +307,7 @@
         location.reload();
     });
 
-    // Exportar (usa los datos filtrados actualmente visibles)
+    // Exportar
     document.getElementById('btnExportar').addEventListener('click', async () => {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('l', 'px', [800, 500]);
@@ -291,8 +315,8 @@
         
         for (let i = 0; i < grafica.data.datasets.length; i++) {
             area.innerHTML = `<div style="padding:40px; background:white; width:800px; height:500px;">
-                <h2 style="font-family:sans-serif; color:#6366f1;">Hemograma JMB: ${grafica.data.datasets[i].label}</h2>
-                <p style="font-size:12px; color:gray;">Rango: ${document.getElementById('filterDesde').value} al ${document.getElementById('filterHasta').value}</p>
+                <h2 style="font-family:sans-serif; color:#6366f1; margin:0;">Hemograma JMB: ${grafica.data.datasets[i].label}</h2>
+                <p style="font-size:11px; color:gray; margin-bottom:15px;">Reporte entre las fechas seleccionadas</p>
                 <canvas id="tempChart${i}"></canvas>
             </div>`;
             const tCtx = document.getElementById(`tempChart${i}`).getContext('2d');
