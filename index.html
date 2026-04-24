@@ -23,8 +23,7 @@
 
         body { 
             font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-            margin: 0; 
-            padding: 0; 
+            margin: 0; padding: 0; 
             background-color: var(--bg);
             color: var(--text);
             height: 100vh;
@@ -45,7 +44,7 @@
             margin-bottom: 15px;
         }
 
-        h1 { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; color: var(--accent); }
+        h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--accent); }
 
         .content-grid {
             display: grid;
@@ -58,25 +57,32 @@
         .card {
             background: var(--card);
             border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 10px 15px -3px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px -3px rgba(0,0,0,0.1);
             padding: 20px;
             display: flex;
             flex-direction: column;
         }
 
+        /* Filtro de Fechas */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .filter-bar label { font-size: 0.65rem; }
+        .filter-bar input { padding: 5px 8px; font-size: 0.8rem; border-width: 1px; }
+
         form { display: flex; flex-direction: column; gap: 12px; }
-
         .input-group { display: flex; flex-direction: column; gap: 4px; }
-
         label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
 
         input { 
-            padding: 10px; 
-            border: 2px solid #f1f5f9; 
-            border-radius: 10px; 
-            font-size: 0.9rem;
-            background: #f8fafc;
-            transition: all 0.2s;
+            padding: 10px; border: 2px solid #f1f5f9; border-radius: 10px; 
+            font-size: 0.9rem; background: #f8fafc; transition: 0.2s;
         }
 
         input:focus { border-color: var(--accent); background: white; outline: none; }
@@ -84,12 +90,7 @@
         input.fuera { border-color: var(--danger); }
 
         .btn-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-
-        button { 
-            border: none; padding: 12px; border-radius: 10px; 
-            font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem;
-        }
-
+        button { border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
         #btn { background: var(--accent); color: white; }
         #btnExportar { background: #e2e8f0; color: #475569; }
         button:hover { transform: translateY(-1px); filter: brightness(1.1); }
@@ -101,6 +102,7 @@
             .main-app { height: auto; }
             .content-grid { grid-template-columns: 1fr; }
             .chart-area { height: 400px; }
+            .filter-bar { flex-wrap: wrap; }
         }
 
         #exportArea { position: absolute; left: -9999px; width: 800px; }
@@ -118,7 +120,7 @@
         <div class="card">
             <form id="formHemograma">
                 <div class="input-group">
-                    <label>Fecha del Examen</label>
+                    <label>Nueva Fecha</label>
                     <input type="date" id="fecha" required>
                 </div>
                 <div class="input-group">
@@ -144,8 +146,22 @@
             </form>
         </div>
 
-        <div class="card chart-area">
-            <canvas id="grafica"></canvas>
+        <div class="card">
+            <div class="filter-bar">
+                <div class="input-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                    <label>Desde:</label>
+                    <input type="date" id="filterDesde">
+                </div>
+                <div class="input-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                    <label>Hasta:</label>
+                    <input type="date" id="filterHasta">
+                </div>
+                <button id="btnReset" style="padding: 5px 10px; font-size: 0.7rem; background: #f1f5f9; color: #64748b;">Reset</button>
+            </div>
+            
+            <div class="chart-area">
+                <canvas id="grafica"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -154,8 +170,10 @@
 
 <script>
     const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzP6z2-BKEJgBWWatfS_9nkIjp5yjKJpq6UNue3oKosqb5Q9w0fUF0ngJFUvbkf_tj4Ug/exec";
-    let fechas = [], hemoglobinas = [], plaquetas = [], globulos = [], neutrofilos = [];
-
+    
+    // Datos maestros (originales)
+    let rawData = [];
+    
     const rangos = {
         hemoglobina: { min: 12, max: 17.5 },
         plaquetas: { min: 150, max: 450 },
@@ -174,19 +192,15 @@
     const ctx = document.getElementById('grafica').getContext('2d');
     const grafica = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: fechas,
-            datasets: [
-                { label: 'Hemoglobina', data: hemoglobinas, borderColor: '#6366f1', backgroundColor: '#6366f1', tension: 0.3 },
-                { label: 'Plaquetas', data: plaquetas, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3 },
-                { label: 'Glóbulos Blancos', data: globulos, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3 },
-                { label: 'Neutrófilos', data: neutrofilos, borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3 }
-            ]
-        },
+        data: { labels: [], datasets: [
+            { label: 'Hemoglobina', data: [], borderColor: '#6366f1', backgroundColor: '#6366f1', tension: 0.3 },
+            { label: 'Plaquetas', data: [], borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3 },
+            { label: 'Glóbulos Blancos', data: [], borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3 },
+            { label: 'Neutrófilos', data: [], borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3 }
+        ]},
         plugins: [ChartDataLabels],
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { position: 'top', labels: { usePointStyle: true, font: { size: 11, weight: '600' } } },
                 datalabels: {
@@ -201,23 +215,59 @@
     async function cargarDatos() {
         try {
             const res = await fetch(URL_SCRIPT);
-            const data = await res.json();
-            data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-            data.forEach(r => {
-                const d = new Date(r.fecha);
-                // Ajuste aquí: Formato DD/MM/YY
-                const f = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                fechas.push(f);
-                hemoglobinas.push(r.hemoglobina); 
-                plaquetas.push(r.plaquetas); 
-                globulos.push(r.globulos); 
-                neutrofilos.push(r.neutrofilos);
-            });
-            grafica.update();
-        } catch (e) { console.log("Cargando..."); }
+            rawData = await res.json();
+            rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+            
+            // Establecer límites iniciales en los filtros
+            if(rawData.length > 0) {
+                document.getElementById('filterDesde').value = rawData[0].fecha.split('T')[0];
+                document.getElementById('filterHasta').value = rawData[rawData.length-1].fecha.split('T')[0];
+            }
+            
+            actualizarGrafica();
+        } catch (e) { console.log("Error de carga"); }
     }
+
+    function actualizarGrafica() {
+        const desde = new Date(document.getElementById('filterDesde').value);
+        const hasta = new Date(document.getElementById('filterHasta').value);
+        
+        // Filtrar datos
+        const filtrados = rawData.filter(r => {
+            const fExamen = new Date(r.fecha);
+            return fExamen >= desde && fExamen <= hasta;
+        });
+
+        // Limpiar arrays actuales
+        grafica.data.labels = [];
+        grafica.data.datasets.forEach(ds => ds.data = []);
+
+        filtrados.forEach(r => {
+            const fLabel = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            grafica.data.labels.push(fLabel);
+            grafica.data.datasets[0].data.push(r.hemoglobina);
+            grafica.data.datasets[1].data.push(r.plaquetas);
+            grafica.data.datasets[2].data.push(r.globulos);
+            grafica.data.datasets[3].data.push(r.neutrofilos);
+        });
+
+        grafica.update();
+    }
+
+    // Eventos de filtro
+    document.getElementById('filterDesde').addEventListener('change', actualizarGrafica);
+    document.getElementById('filterHasta').addEventListener('change', actualizarGrafica);
+    document.getElementById('btnReset').addEventListener('click', () => {
+        if(rawData.length > 0) {
+            document.getElementById('filterDesde').value = rawData[0].fecha.split('T')[0];
+            document.getElementById('filterHasta').value = rawData[rawData.length-1].fecha.split('T')[0];
+            actualizarGrafica();
+        }
+    });
+
     cargarDatos();
 
+    // Guardado (sin cambios)
     document.getElementById('formHemograma').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btn');
@@ -233,19 +283,22 @@
         location.reload();
     });
 
+    // Exportar (usa los datos filtrados actualmente visibles)
     document.getElementById('btnExportar').addEventListener('click', async () => {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('l', 'px', [800, 500]);
         const area = document.getElementById('exportArea');
+        
         for (let i = 0; i < grafica.data.datasets.length; i++) {
             area.innerHTML = `<div style="padding:40px; background:white; width:800px; height:500px;">
                 <h2 style="font-family:sans-serif; color:#6366f1;">Hemograma JMB: ${grafica.data.datasets[i].label}</h2>
+                <p style="font-size:12px; color:gray;">Rango: ${document.getElementById('filterDesde').value} al ${document.getElementById('filterHasta').value}</p>
                 <canvas id="tempChart${i}"></canvas>
             </div>`;
             const tCtx = document.getElementById(`tempChart${i}`).getContext('2d');
             new Chart(tCtx, {
                 type: 'line',
-                data: { labels: fechas, datasets: [grafica.data.datasets[i]] },
+                data: { labels: grafica.data.labels, datasets: [grafica.data.datasets[i]] },
                 plugins: [ChartDataLabels],
                 options: { animation: false, plugins: { datalabels: { align: 'top', anchor: 'end', backgroundColor: grafica.data.datasets[i].borderColor, color: 'white', borderRadius: 4 } } }
             });
@@ -254,7 +307,7 @@
             if (i > 0) pdf.addPage();
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 800, 500);
         }
-        pdf.save('Reporte_Hemograma_JMB.pdf');
+        pdf.save('Reporte_Filtrado_JMB.pdf');
         area.innerHTML = '';
     });
 </script>
