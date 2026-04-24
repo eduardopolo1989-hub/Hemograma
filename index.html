@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hemograma JMB | Dashboard</title>
+    <title>Hemograma JMB | Seguimiento Clínico</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,97 +13,41 @@
         :root {
             --accent: #6366f1;
             --success: #10b981;
-            --danger: #f43f5e;
+            --danger: #ef4444;
+            --event: #f43f5e;
             --text: #1e293b;
             --bg: #f8fafc;
             --card: #ffffff;
         }
 
         * { box-sizing: border-box; }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            margin: 0; padding: 0; 
-            background-color: var(--bg);
-            color: var(--text);
-            height: 100vh;
-            overflow: hidden;
-        }
-
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
         .main-app { display: flex; flex-direction: column; height: 100vh; padding: 15px; }
-
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: var(--accent); }
 
-        .content-grid {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 15px;
-            flex: 1;
-            min-height: 0;
-        }
+        .content-grid { display: grid; grid-template-columns: 320px 1fr; gap: 15px; flex: 1; min-height: 0; }
+        .card { background: var(--card); border-radius: 16px; box-shadow: 0 4px 15px -3px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; }
 
-        .card {
-            background: var(--card);
-            border-radius: 16px;
-            box-shadow: 0 4px 15px -3px rgba(0,0,0,0.1);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .filter-bar {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #f1f5f9;
-            flex-wrap: wrap;
-        }
-
-        .filter-group { display: flex; align-items: center; gap: 6px; }
+        /* Formulario */
+        form { display: flex; flex-direction: column; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 3px; }
+        label { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
+        input { padding: 8px 12px; border: 2px solid #f1f5f9; border-radius: 10px; font-size: 0.9rem; background: #f8fafc; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--accent); background: white; }
+        .input-evento { border: 2px dashed #cbd5e1; background: #fffcfc; }
         
-        select {
-            padding: 6px 10px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            background: white;
-            font-size: 0.85rem;
-            color: var(--text);
-            cursor: pointer;
-            outline: none;
-        }
-
-        form { display: flex; flex-direction: column; gap: 12px; }
-        .input-group { display: flex; flex-direction: column; gap: 4px; }
-        label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; }
-
-        input { 
-            padding: 10px; border: 2px solid #f1f5f9; border-radius: 10px; 
-            font-size: 0.9rem; background: #f8fafc; transition: 0.2s;
-        }
-
-        input:focus { border-color: var(--accent); background: white; outline: none; }
-        input.normal { border-color: var(--success); }
-        input.fuera { border-color: var(--danger); }
-
         .btn-stack { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         button { border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
         #btn { background: var(--accent); color: white; }
         #btnExportar { background: #e2e8f0; color: #475569; }
-        button:hover { transform: translateY(-1px); filter: brightness(1.1); }
 
+        /* Filtros y Gráfica */
+        .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
+        select { padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.85rem; outline: none; }
         .chart-area { flex: 1; min-height: 0; position: relative; }
 
-        @media (max-width: 850px) {
-            body { overflow: auto; height: auto; }
-            .main-app { height: auto; }
-            .content-grid { grid-template-columns: 1fr; }
-            .chart-area { height: 400px; }
-        }
-
+        @media (max-width: 850px) { body { overflow: auto; } .main-app { height: auto; } .content-grid { grid-template-columns: 1fr; } .chart-area { height: 400px; } }
         #exportArea { position: absolute; left: -9999px; width: 800px; }
     </style>
 </head>
@@ -112,32 +56,23 @@
 <div class="main-app">
     <header>
         <h1>Hemograma JMB</h1>
-        <div id="status" style="font-size: 0.7rem; color: #94a3b8;">Dashboard de Control Personal</div>
+        <div id="status" style="font-size: 0.7rem; color: #94a3b8;">Seguimiento Post-Tratamiento</div>
     </header>
 
     <div class="content-grid">
         <div class="card">
             <form id="formHemograma">
+                <div class="input-group"><label>Fecha</label><input type="date" id="fecha" required></div>
+                <div class="input-group"><label>Hemoglobina</label><input type="text" id="hemoglobina" placeholder="0.0" required></div>
+                <div class="input-group"><label>Plaquetas</label><input type="text" id="plaquetas" placeholder="0" required></div>
+                <div class="input-group"><label>Glóbulos Blancos</label><input type="text" id="globulos" placeholder="0.0" required></div>
+                <div class="input-group"><label>Neutrófilos</label><input type="text" id="neutrofilos" placeholder="0.0" required></div>
+                
                 <div class="input-group">
-                    <label>Nueva Fecha</label>
-                    <input type="date" id="fecha" required>
+                    <label style="color: var(--event);">¿Evento Especial? (Opcional)</label>
+                    <input type="text" id="evento" class="input-evento" placeholder="Ej: Quimioterapia">
                 </div>
-                <div class="input-group">
-                    <label>Hemoglobina</label>
-                    <input type="text" id="hemoglobina" placeholder="0.0" required>
-                </div>
-                <div class="input-group">
-                    <label>Plaquetas</label>
-                    <input type="text" id="plaquetas" placeholder="0" required>
-                </div>
-                <div class="input-group">
-                    <label>Glóbulos Blancos</label>
-                    <input type="text" id="globulos" placeholder="0.0" required>
-                </div>
-                <div class="input-group">
-                    <label>Neutrófilos</label>
-                    <input type="text" id="neutrofilos" placeholder="0.0" required>
-                </div>
+
                 <div class="btn-stack">
                     <button type="submit" id="btn">Guardar Registro</button>
                     <button type="button" id="btnExportar">Exportar Reporte PDF</button>
@@ -156,14 +91,8 @@
                         <option value="neutrofilos">Neutrófilos</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <label>Desde:</label>
-                    <select id="selectDesde"></select>
-                </div>
-                <div class="filter-group">
-                    <label>Hasta:</label>
-                    <select id="selectHasta"></select>
-                </div>
+                <div class="filter-group"><label>Desde:</label><select id="selectDesde"></select></div>
+                <div class="filter-group"><label>Hasta:</label><select id="selectHasta"></select></div>
             </div>
             
             <div class="chart-area">
@@ -176,31 +105,50 @@
 <div id="exportArea"></div>
 
 <script>
-    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzP6z2-BKEJgBWWatfS_9nkIjp5yjKJpq6UNue3oKosqb5Q9w0fUF0ngJFUvbkf_tj4Ug/exec";
-    
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbx4fj2rKc1PV5W6jHl989qcD7jKBu_HMpspb9L5t769gFplKprT8DNTXBMY6DhFUhgUjQ/exec";
     let rawData = [];
     
     const configItems = {
-        hemoglobina: { label: 'Hemoglobina', color: '#6366f1', min: 12, max: 17.5 },
-        plaquetas: { label: 'Plaquetas', color: '#3b82f6', min: 150, max: 450 },
-        globulos: { label: 'Glóbulos Blancos', color: '#10b981', min: 4.5, max: 11 },
-        neutrofilos: { label: 'Neutrófilos', color: '#f59e0b', min: 40, max: 75 }
+        hemoglobina: { label: 'Hemoglobina', color: '#6366f1' },
+        plaquetas: { label: 'Plaquetas', color: '#3b82f6' },
+        globulos: { label: 'Glóbulos Blancos', color: '#10b981' },
+        neutrofilos: { label: 'Neutrófilos', color: '#f59e0b' }
     };
 
-    // Validación visual de inputs
-    Object.keys(configItems).forEach(id => {
-        document.getElementById(id).addEventListener('input', (e) => {
-            const val = parseFloat(e.target.value.replace(',', '.'));
-            if (isNaN(val)) { e.target.className = ''; return; }
-            e.target.className = (val >= configItems[id].min && val <= configItems[id].max) ? 'normal' : 'fuera';
-        });
-    });
-
     const ctx = document.getElementById('grafica').getContext('2d');
+    
+    // Plugin personalizado para dibujar líneas de evento (Quimioterapia, etc)
+    const eventLinesPlugin = {
+        id: 'eventLines',
+        afterDraw: (chart) => {
+            const { ctx, chartArea: {top, bottom, left, right}, scales: {x} } = chart;
+            chart.data.datasets[0].eventos.forEach((ev, index) => {
+                if (ev) {
+                    const xPos = x.getPixelForValue(index);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineWidth = 2;
+                    ctx.moveTo(xPos, top);
+                    ctx.lineTo(xPos, bottom);
+                    ctx.stroke();
+
+                    // Etiqueta del evento
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(ev.toUpperCase(), xPos, top - 5);
+                    ctx.restore();
+                }
+            });
+        }
+    };
+
     const grafica = new Chart(ctx, {
         type: 'line',
-        data: { labels: [], datasets: [{ label: '', data: [], tension: 0.3 }] },
-        plugins: [ChartDataLabels],
+        data: { labels: [], datasets: [{ label: '', data: [], eventos: [], tension: 0.3 }] },
+        plugins: [ChartDataLabels, eventLinesPlugin],
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
@@ -208,13 +156,10 @@
                 datalabels: {
                     align: 'top', anchor: 'end', borderRadius: 6, color: 'white',
                     backgroundColor: (ctx) => ctx.dataset.borderColor,
-                    font: { weight: 'bold', size: 10 }, padding: 5
+                    font: { weight: 'bold', size: 10 }, padding: 4
                 }
             },
-            scales: {
-                y: { beginAtZero: false, grid: { color: '#f1f5f9' } },
-                x: { grid: { display: false } }
-            }
+            layout: { padding: { top: 20 } }
         }
     });
 
@@ -225,14 +170,12 @@
             rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
             poblarSelectoresFechas();
             actualizarGrafica();
-        } catch (e) { console.log("Error de carga"); }
+        } catch (e) { console.log("Cargando..."); }
     }
 
     function poblarSelectoresFechas() {
-        const sD = document.getElementById('selectDesde');
-        const sH = document.getElementById('selectHasta');
+        const sD = document.getElementById('selectDesde'), sH = document.getElementById('selectHasta');
         sD.innerHTML = ''; sH.innerHTML = '';
-
         rawData.forEach(r => {
             const fTxt = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
             [sD, sH].forEach(s => {
@@ -241,14 +184,12 @@
                 s.appendChild(opt);
             });
         });
-        sD.selectedIndex = 0;
-        sH.selectedIndex = rawData.length - 1;
+        sD.selectedIndex = 0; sH.selectedIndex = rawData.length - 1;
     }
 
     function actualizarGrafica() {
         const itemKey = document.getElementById('selectItem').value;
         const config = configItems[itemKey];
-        
         const fDesde = new Date(document.getElementById('selectDesde').value);
         const fHasta = new Date(document.getElementById('selectHasta').value);
 
@@ -257,24 +198,22 @@
             return f >= fDesde && f <= fHasta;
         });
 
-        // Actualizar datos y estética
         grafica.data.labels = filtrados.map(r => new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }));
         grafica.data.datasets[0].label = config.label;
         grafica.data.datasets[0].data = filtrados.map(r => r[itemKey]);
+        grafica.data.datasets[0].eventos = filtrados.map(r => r.evento || null); // Guardar info de eventos
         grafica.data.datasets[0].borderColor = config.color;
         grafica.data.datasets[0].backgroundColor = config.color;
 
         grafica.update();
     }
 
-    // Eventos
     document.getElementById('selectItem').addEventListener('change', actualizarGrafica);
     document.getElementById('selectDesde').addEventListener('change', actualizarGrafica);
     document.getElementById('selectHasta').addEventListener('change', actualizarGrafica);
 
     cargarDatos();
 
-    // Guardado
     document.getElementById('formHemograma').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btn');
@@ -284,13 +223,14 @@
             hemoglobina: document.getElementById('hemoglobina').value.replace(',','.'),
             plaquetas: document.getElementById('plaquetas').value.replace(',','.'),
             globulos: document.getElementById('globulos').value.replace(',','.'),
-            neutrofilos: document.getElementById('neutrofilos').value.replace(',','.')
+            neutrofilos: document.getElementById('neutrofilos').value.replace(',','.'),
+            evento: document.getElementById('evento').value // ENVIAR EVENTO
         };
         await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', body: JSON.stringify(nuevo) });
         location.reload();
     });
 
-    // Exportar Reporte Paginado (mantiene la lógica de exportar todos los items)
+    // Exportar PDF Paginado
     document.getElementById('btnExportar').addEventListener('click', async () => {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('l', 'px', [800, 500]);
@@ -298,12 +238,14 @@
         const keys = Object.keys(configItems);
         
         for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            const conf = configItems[key];
-            
+            const key = keys[i], conf = configItems[key];
+            const dataF = rawData.filter(r => {
+                const f = new Date(r.fecha);
+                return f >= new Date(document.getElementById('selectDesde').value) && f <= new Date(document.getElementById('selectHasta').value);
+            });
+
             area.innerHTML = `<div style="padding:40px; background:white; width:800px; height:500px;">
-                <h2 style="font-family:sans-serif; color:${conf.color}; margin:0;">Hemograma JMB: ${conf.label}</h2>
-                <p style="font-size:11px; color:gray;">Reporte histórico filtrado por fecha</p>
+                <h2 style="font-family:sans-serif; color:${conf.color}; margin:0;">${conf.label} - Reporte de Eventos</h2>
                 <canvas id="tempChart${i}"></canvas>
             </div>`;
             
@@ -311,14 +253,11 @@
             new Chart(tCtx, {
                 type: 'line',
                 data: { 
-                    labels: grafica.data.labels, 
-                    datasets: [{ label: conf.label, data: rawData.filter(r => {
-                        const f = new Date(r.fecha);
-                        return f >= new Date(document.getElementById('selectDesde').value) && f <= new Date(document.getElementById('selectHasta').value);
-                    }).map(r => r[key]), borderColor: conf.color, backgroundColor: conf.color }] 
+                    labels: dataF.map(r => new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })), 
+                    datasets: [{ label: conf.label, data: dataF.map(r => r[key]), eventos: dataF.map(r => r.evento), borderColor: conf.color }] 
                 },
-                plugins: [ChartDataLabels],
-                options: { animation: false, plugins: { datalabels: { align: 'top', anchor: 'end', backgroundColor: conf.color, color: 'white', borderRadius: 4 } } }
+                plugins: [ChartDataLabels, eventLinesPlugin],
+                options: { animation: false, layout: { padding: { top: 20 } } }
             });
             
             await new Promise(r => setTimeout(r, 600));
@@ -326,7 +265,7 @@
             if (i > 0) pdf.addPage();
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 800, 500);
         }
-        pdf.save('Reporte_Historico_JMB.pdf');
+        pdf.save('Seguimiento_Clinico_JMB.pdf');
         area.innerHTML = '';
     });
 </script>
