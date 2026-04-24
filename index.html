@@ -53,17 +53,17 @@
             flex-direction: column;
         }
 
-        /* Estilo para los Selectores de Filtro */
         .filter-bar {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 12px;
             border-bottom: 1px solid #f1f5f9;
+            flex-wrap: wrap;
         }
 
-        .filter-group { display: flex; align-items: center; gap: 8px; }
+        .filter-group { display: flex; align-items: center; gap: 6px; }
         
         select {
             padding: 6px 10px;
@@ -148,6 +148,15 @@
         <div class="card">
             <div class="filter-bar">
                 <div class="filter-group">
+                    <label style="color: var(--accent);">Ver:</label>
+                    <select id="selectItem" style="border-color: var(--accent); font-weight: bold;">
+                        <option value="hemoglobina">Hemoglobina</option>
+                        <option value="plaquetas">Plaquetas</option>
+                        <option value="globulos">Glóbulos Blancos</option>
+                        <option value="neutrofilos">Neutrófilos</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label>Desde:</label>
                     <select id="selectDesde"></select>
                 </div>
@@ -155,7 +164,6 @@
                     <label>Hasta:</label>
                     <select id="selectHasta"></select>
                 </div>
-                <button id="btnReset" style="padding: 4px 12px; font-size: 0.7rem; background: #f1f5f9; color: #64748b; border-radius: 6px;">Reset</button>
             </div>
             
             <div class="chart-area">
@@ -172,40 +180,40 @@
     
     let rawData = [];
     
-    const rangos = {
-        hemoglobina: { min: 12, max: 17.5 },
-        plaquetas: { min: 150, max: 450 },
-        globulos: { min: 4.5, max: 11 },
-        neutrofilos: { min: 40, max: 75 }
+    const configItems = {
+        hemoglobina: { label: 'Hemoglobina', color: '#6366f1', min: 12, max: 17.5 },
+        plaquetas: { label: 'Plaquetas', color: '#3b82f6', min: 150, max: 450 },
+        globulos: { label: 'Glóbulos Blancos', color: '#10b981', min: 4.5, max: 11 },
+        neutrofilos: { label: 'Neutrófilos', color: '#f59e0b', min: 40, max: 75 }
     };
 
-    ['hemoglobina', 'plaquetas', 'globulos', 'neutrofilos'].forEach(id => {
+    // Validación visual de inputs
+    Object.keys(configItems).forEach(id => {
         document.getElementById(id).addEventListener('input', (e) => {
             const val = parseFloat(e.target.value.replace(',', '.'));
             if (isNaN(val)) { e.target.className = ''; return; }
-            e.target.className = (val >= rangos[id].min && val <= rangos[id].max) ? 'normal' : 'fuera';
+            e.target.className = (val >= configItems[id].min && val <= configItems[id].max) ? 'normal' : 'fuera';
         });
     });
 
     const ctx = document.getElementById('grafica').getContext('2d');
     const grafica = new Chart(ctx, {
         type: 'line',
-        data: { labels: [], datasets: [
-            { label: 'Hemoglobina', data: [], borderColor: '#6366f1', backgroundColor: '#6366f1', tension: 0.3 },
-            { label: 'Plaquetas', data: [], borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.3 },
-            { label: 'Glóbulos Blancos', data: [], borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.3 },
-            { label: 'Neutrófilos', data: [], borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0.3 }
-        ]},
+        data: { labels: [], datasets: [{ label: '', data: [], tension: 0.3 }] },
         plugins: [ChartDataLabels],
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { usePointStyle: true, font: { size: 11, weight: '600' } } },
+                legend: { display: false },
                 datalabels: {
                     align: 'top', anchor: 'end', borderRadius: 6, color: 'white',
                     backgroundColor: (ctx) => ctx.dataset.borderColor,
-                    font: { weight: 'bold', size: 9 }, padding: 4
+                    font: { weight: 'bold', size: 10 }, padding: 5
                 }
+            },
+            scales: {
+                y: { beginAtZero: false, grid: { color: '#f1f5f9' } },
+                x: { grid: { display: false } }
             }
         }
     });
@@ -214,80 +222,55 @@
         try {
             const res = await fetch(URL_SCRIPT);
             rawData = await res.json();
-            
-            // Ordenar por fecha real
             rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-            
-            poblarSelectores();
+            poblarSelectoresFechas();
             actualizarGrafica();
         } catch (e) { console.log("Error de carga"); }
     }
 
-    function poblarSelectores() {
-        const selectDesde = document.getElementById('selectDesde');
-        const selectHasta = document.getElementById('selectHasta');
-        
-        // Limpiar
-        selectDesde.innerHTML = '';
-        selectHasta.innerHTML = '';
+    function poblarSelectoresFechas() {
+        const sD = document.getElementById('selectDesde');
+        const sH = document.getElementById('selectHasta');
+        sD.innerHTML = ''; sH.innerHTML = '';
 
-        rawData.forEach((r, index) => {
-            const fechaTxt = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
-            
-            // Opción para "Desde"
-            let optD = document.createElement('option');
-            optD.value = r.fecha; // Valor ISO para comparar
-            optD.textContent = fechaTxt;
-            selectDesde.appendChild(optD);
-
-            // Opción para "Hasta"
-            let optH = document.createElement('option');
-            optH.value = r.fecha;
-            optH.textContent = fechaTxt;
-            selectHasta.appendChild(optH);
+        rawData.forEach(r => {
+            const fTxt = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            [sD, sH].forEach(s => {
+                let opt = document.createElement('option');
+                opt.value = r.fecha; opt.textContent = fTxt;
+                s.appendChild(opt);
+            });
         });
-
-        // Por defecto: "Desde" la primera y "Hasta" la última
-        selectDesde.selectedIndex = 0;
-        selectHasta.selectedIndex = rawData.length - 1;
+        sD.selectedIndex = 0;
+        sH.selectedIndex = rawData.length - 1;
     }
 
     function actualizarGrafica() {
-        const valDesde = document.getElementById('selectDesde').value;
-        const valHasta = document.getElementById('selectHasta').value;
+        const itemKey = document.getElementById('selectItem').value;
+        const config = configItems[itemKey];
         
-        const fechaLimiteDesde = new Date(valDesde);
-        const fechaLimiteHasta = new Date(valHasta);
+        const fDesde = new Date(document.getElementById('selectDesde').value);
+        const fHasta = new Date(document.getElementById('selectHasta').value);
 
         const filtrados = rawData.filter(r => {
             const f = new Date(r.fecha);
-            return f >= fechaLimiteDesde && f <= fechaLimiteHasta;
+            return f >= fDesde && f <= fHasta;
         });
 
-        grafica.data.labels = [];
-        grafica.data.datasets.forEach(ds => ds.data = []);
-
-        filtrados.forEach(r => {
-            const fLabel = new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
-            grafica.data.labels.push(fLabel);
-            grafica.data.datasets[0].data.push(r.hemoglobina);
-            grafica.data.datasets[1].data.push(r.plaquetas);
-            grafica.data.datasets[2].data.push(r.globulos);
-            grafica.data.datasets[3].data.push(r.neutrofilos);
-        });
+        // Actualizar datos y estética
+        grafica.data.labels = filtrados.map(r => new Date(r.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }));
+        grafica.data.datasets[0].label = config.label;
+        grafica.data.datasets[0].data = filtrados.map(r => r[itemKey]);
+        grafica.data.datasets[0].borderColor = config.color;
+        grafica.data.datasets[0].backgroundColor = config.color;
 
         grafica.update();
     }
 
+    // Eventos
+    document.getElementById('selectItem').addEventListener('change', actualizarGrafica);
     document.getElementById('selectDesde').addEventListener('change', actualizarGrafica);
     document.getElementById('selectHasta').addEventListener('change', actualizarGrafica);
-    document.getElementById('btnReset').addEventListener('click', () => {
-        if(rawData.length > 0) {
-            document.getElementById('selectDesde').selectedIndex = 0;
-            document.getElementById('selectHasta').selectedIndex = rawData.length - 1;
-            actualizarGrafica();
-        }
-    });
 
     cargarDatos();
 
@@ -307,31 +290,43 @@
         location.reload();
     });
 
-    // Exportar
+    // Exportar Reporte Paginado (mantiene la lógica de exportar todos los items)
     document.getElementById('btnExportar').addEventListener('click', async () => {
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('l', 'px', [800, 500]);
         const area = document.getElementById('exportArea');
+        const keys = Object.keys(configItems);
         
-        for (let i = 0; i < grafica.data.datasets.length; i++) {
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const conf = configItems[key];
+            
             area.innerHTML = `<div style="padding:40px; background:white; width:800px; height:500px;">
-                <h2 style="font-family:sans-serif; color:#6366f1; margin:0;">Hemograma JMB: ${grafica.data.datasets[i].label}</h2>
-                <p style="font-size:11px; color:gray; margin-bottom:15px;">Reporte entre las fechas seleccionadas</p>
+                <h2 style="font-family:sans-serif; color:${conf.color}; margin:0;">Hemograma JMB: ${conf.label}</h2>
+                <p style="font-size:11px; color:gray;">Reporte histórico filtrado por fecha</p>
                 <canvas id="tempChart${i}"></canvas>
             </div>`;
+            
             const tCtx = document.getElementById(`tempChart${i}`).getContext('2d');
             new Chart(tCtx, {
                 type: 'line',
-                data: { labels: grafica.data.labels, datasets: [grafica.data.datasets[i]] },
+                data: { 
+                    labels: grafica.data.labels, 
+                    datasets: [{ label: conf.label, data: rawData.filter(r => {
+                        const f = new Date(r.fecha);
+                        return f >= new Date(document.getElementById('selectDesde').value) && f <= new Date(document.getElementById('selectHasta').value);
+                    }).map(r => r[key]), borderColor: conf.color, backgroundColor: conf.color }] 
+                },
                 plugins: [ChartDataLabels],
-                options: { animation: false, plugins: { datalabels: { align: 'top', anchor: 'end', backgroundColor: grafica.data.datasets[i].borderColor, color: 'white', borderRadius: 4 } } }
+                options: { animation: false, plugins: { datalabels: { align: 'top', anchor: 'end', backgroundColor: conf.color, color: 'white', borderRadius: 4 } } }
             });
+            
             await new Promise(r => setTimeout(r, 600));
             const canvas = await html2canvas(area.firstChild);
             if (i > 0) pdf.addPage();
             pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 800, 500);
         }
-        pdf.save('Reporte_Filtrado_JMB.pdf');
+        pdf.save('Reporte_Historico_JMB.pdf');
         area.innerHTML = '';
     });
 </script>
