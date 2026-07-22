@@ -215,7 +215,6 @@
             
             const label = [fechaFormateada, `Sem ${semanas}`];
 
-            // Si el registro actual tiene un evento, el hito para el SIGUIENTE registro se reinicia a hoy
             if (r.evento && r.evento.trim() !== "") {
                 hitoInicioPeriodo = fechaActual;
             }
@@ -264,6 +263,17 @@
         const area = document.getElementById('exportArea');
         const keys = Object.keys(configItems);
         
+        // Obtenemos los filtros activos para aplicarlos correctamente en cada gráfico del PDF
+        const fDesdeStr = document.getElementById('selectDesde').value;
+        const fHastaStr = document.getElementById('selectHasta').value;
+        const fDesde = new Date(fDesdeStr);
+        const fHasta = new Date(fHastaStr);
+
+        const filtrados = rawData.filter(r => {
+            const f = new Date(r.fecha);
+            return f >= fDesde && f <= fHasta;
+        });
+
         for (let i = 0; i < keys.length; i++) {
             const key = keys[i], conf = configItems[key];
             
@@ -272,6 +282,14 @@
                 <canvas id="tempChart${i}"></canvas>
             </div>`;
             
+            // Extraemos los datos específicos y reales para la métrica actual (key)
+            const datosEspecificos = filtrados.map(r => {
+                const val = r[key];
+                return (val === "" || val === undefined || val === null) ? null : val;
+            });
+            
+            const eventosEspecificos = filtrados.map(r => r.evento || null);
+
             const tCtx = document.getElementById(`tempChart${i}`).getContext('2d');
             new Chart(tCtx, {
                 type: 'line',
@@ -279,8 +297,8 @@
                     labels: grafica.data.labels, 
                     datasets: [{ 
                         label: conf.label, 
-                        data: grafica.data.datasets[0].data, // Usamos los datos ya procesados
-                        eventos: grafica.data.datasets[0].eventos, 
+                        data: datosEspecificos, 
+                        eventos: eventosEspecificos, 
                         borderColor: conf.color, 
                         spanGaps: true,
                         pointRadius: 6
